@@ -1,29 +1,35 @@
 package com.example.lab02_danp_2022
 
-import android.R
-import android.content.ClipData
 import android.os.Bundle
-import android.speech.tts.TextToSpeech
-import android.widget.RadioGroup
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.material.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.toSize
-import com.example.lab02_danp_2022.ui.theme.LAB02_DANP_2022Theme
+import androidx.navigation.NavController
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
+import androidx.navigation.compose.rememberNavController
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -31,25 +37,36 @@ class MainActivity : ComponentActivity() {
         setContent {
 
                 // A surface container using the 'background' color from the theme
-
-                    //Greeting("Android")
-                    dropDownMenu()
-
+            val navController = rememberNavController()
+            NavHost(navController = navController, startDestination = "main"){
+                composable("main"){
+                    MainScreen(navController = navController)
+                }
+                composable("second/{city}"){
+                    backStackEntry ->
+                    val city = backStackEntry.arguments?.getString("city")
+                    requireNotNull(city)
+                    SecondScreen(city)
+                }
+            }
 
         }
     }
 }
-@Preview(showBackground = true)
+
 @Composable
-fun dropDownMenu(){
+fun MainScreen(navController: NavController){
+
     var expanded by remember { mutableStateOf(false)}
-    val list = listOf("1. Amazonas","2. Áncash","3. Apurímac", "4. Arequipa", "5. Ayacucho",
-        "6. Cajamarca", "7. Callao", "8. Cusco" , "9. Huancavelica" , "10. Huánuco" , "11.Ica" , "12. Junín" ,
-        "13.La Libertad", "14. Lambayeque", "15. Lima Metropolitana", "16. Loreto" , "17. Madre de Dios" ,
-        "18. Moquegua" , "19. Pasco" , "20. Piura" , "21. Puno" , "22. San Martín" , "23. Tacna" , "24. Tumbes" , "25. Ucayali")
+    val list = listOf("Amazonas","Áncash","Apurímac", "Arequipa", "Ayacucho",
+        "Cajamarca", "Callao", "Cusco" , "Huancavelica" , "Huánuco" , "Ica" , "Junín" ,
+        "La Libertad", "Lambayeque", "Lima Metropolitana", "Loreto" , "Madre de Dios" ,
+        "Moquegua" , "Pasco" , "Piura" , "Puno" , "San Martín" , "Tacna" , "Tumbes" , "Ucayali")
     var selectedItem by remember { mutableStateOf("")}
 
     var textFiledSize by remember { mutableStateOf(Size.Zero) }
+
+    val context = LocalContext.current
     
     val icon = if (expanded){
         Icons.Filled.KeyboardArrowUp
@@ -57,16 +74,21 @@ fun dropDownMenu(){
         Icons.Filled.KeyboardArrowDown
     }
 
-    Column(modifier = Modifier.padding(20.dp)){
+    Column(
+        modifier = Modifier.fillMaxSize(),
+        verticalArrangement = Arrangement.Center,
+        horizontalAlignment = Alignment.CenterHorizontally
+    ){
         OutlinedTextField(
             value = selectedItem,
             onValueChange = {selectedItem = it },
             modifier = Modifier
-                .fillMaxWidth()
                 .onGloballyPositioned { coordinates ->
                     textFiledSize = coordinates.size.toSize()
                 },
-            label = {Text(text ="Escoger Ciudad")},
+            label = {Text(text ="Elegir cuidad")},
+            readOnly = true,
+            enabled = false,
             trailingIcon = {
              Icon(icon,"", Modifier.clickable{ expanded = !expanded })
             }
@@ -83,14 +105,96 @@ fun dropDownMenu(){
                     expanded = false
                 }) {
                     Text(text = label)
-                    }
-
-                 }
+                }
             }
-    }
-            
+        }
+        Button(
+            modifier = Modifier.padding(16.dp),
+            onClick = {
+                if(selectedItem == "")
+                    Toast.makeText(
+                    context,
+                    "Seleccione ciudad",
+                    Toast.LENGTH_SHORT
+                ).show()
+                else
+                    navController.navigate("second/$selectedItem")
+        }, colors = ButtonDefaults.textButtonColors(
+            backgroundColor = Color.Red
+        )){
+            Text("Buscar platos")
+        }
 
     }
+}
+
+
+@Composable
+fun SecondScreen(city: String) {
+    Column(
+        modifier = Modifier.fillMaxSize()
+    ) {
+        Text(city)
+        LazyColumn(modifier = Modifier.padding(vertical = 4.dp)) {
+            items(items = getDishesOfRegion(city)) { name ->
+                ItemDish(name = name)
+            }
+        }
+    }
+}
+
+fun getDishesOfRegion(city: String): List<String> {
+
+    when (city){
+        "Arequipa" -> return Dishes.arequipaList
+        "Lima Metropolitana" -> return Dishes.limaList
+
+        //???
+
+        else -> {
+            return List(1000) { "$it" }
+        }
+    }
+
+}
+
+@Composable
+private fun ItemDish(name: String) {
+    Card(
+        backgroundColor = MaterialTheme.colors.primary,
+        modifier = Modifier.padding(vertical = 4.dp, horizontal = 8.dp)
+    ) {
+        CardContent(name)
+    }
+}
+
+@Composable
+private fun CardContent(name: String) {
+    Row(
+        modifier = Modifier
+            .padding(12.dp)
+            .animateContentSize(
+                animationSpec = spring(
+                    dampingRatio = Spring.DampingRatioMediumBouncy,
+                    stiffness = Spring.StiffnessLow
+                )
+            )
+    ) {
+        Column(
+            modifier = Modifier
+                .weight(1f)
+                .padding(12.dp)
+        ) {
+            Text(
+                text = name,
+                style = MaterialTheme.typography.h4.copy(
+                    fontWeight = FontWeight.ExtraBold
+                )
+            )
+        }
+
+    }
+}
 
 
 
